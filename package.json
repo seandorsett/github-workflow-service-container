@@ -1,0 +1,12 @@
+{
+  "name": "service-container-entrypoint-demo",
+  "version": "1.0.0",
+  "description": "Demo showcasing GitHub Actions service container entrypoint/command customization",
+  "scripts": {
+    "test": "node --test tests/mysql-config.test.js",
+    "check": "node src/check-mysql-config.js"
+  },
+  "dependencies": {
+    "mysql2": "^3.9.0"
+  }
+}

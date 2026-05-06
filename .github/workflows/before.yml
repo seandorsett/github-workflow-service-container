@@ -1,0 +1,78 @@
+# ============================================================
+# BEFORE: Custom Dockerfile workaround
+# ============================================================
+# Before the entrypoint/command feature, you had to build a
+# custom Docker image just to pass flags to MySQL. This meant
+# maintaining a Dockerfile, a custom entrypoint script, and
+# building the image in CI before using it as a service.
+# ============================================================
+
+name: "Before: Custom Dockerfile Workaround"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test-mysql-config:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        # We must build and push this custom image, or build it inline.
+        # Here we build it as a step and can't use it as a service directly,
+        # so the common workaround is to pre-push to a registry or use
+        # a job container approach. For this demo, we build inline and
+        # start MySQL manually.
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: test
+        ports:
+          - 3306:3306
+        # Without entrypoint/command support, we cannot pass custom flags!
+        # The service starts with default configuration.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # WORKAROUND: Stop the default service and restart with custom flags
+      - name: "Workaround: Build custom MySQL image"
+        run: |
+          docker build -t mysql-custom -f .docker/Dockerfile.mysql-custom .docker/
+
+      - name: "Workaround: Start MySQL with custom flags"
+        run: |
+          # Stop the service container started by Actions
+          docker stop $(docker ps -q --filter "ancestor=mysql:8") || true
+
+          # Start our custom image on the same port
+          docker run -d \
+            --name mysql-custom \
+            -e MYSQL_ROOT_PASSWORD=test \
+            -p 3307:3306 \
+            mysql-custom
+
+          # Wait for MySQL to be ready
+          echo "Waiting for MySQL to start..."
+          for i in $(seq 1 30); do
+            if docker exec mysql-custom mysqladmin ping -h 127.0.0.1 --silent 2>/dev/null; then
+              echo "MySQL is ready!"
+              break
+            fi
+            sleep 2
+          done
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - run: npm install
+
+      - name: Run integration tests
+        env:
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: "3307"
+          MYSQL_ROOT_PASSWORD: test
+        run: npm test

@@ -1,0 +1,8 @@
+# Custom MySQL image that bakes in the flags we need.
+# This was the workaround BEFORE the entrypoint/command feature existed.
+FROM mysql:8
+
+COPY entrypoint.sh /usr/local/bin/custom-entrypoint.sh
+RUN chmod +x /usr/local/bin/custom-entrypoint.sh
+
+ENTRYPOINT ["custom-entrypoint.sh"]

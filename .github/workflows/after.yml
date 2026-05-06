@@ -1,0 +1,50 @@
+# ============================================================
+# AFTER: Using the new `command` key (April 2026)
+# ============================================================
+# With the new entrypoint/command support for service containers,
+# you simply add `command:` to pass flags. No custom Dockerfile,
+# no workaround scripts, no rebuilding images in CI.
+# ============================================================
+
+name: "After: Service Container Command Key"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test-mysql-config:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8
+        # ✨ NEW: Just pass your flags directly!
+        command: --sql_mode=STRICT_TRANS_TABLES --max_allowed_packet=512M
+        env:
+          MYSQL_ROOT_PASSWORD: test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - run: npm install
+
+      - name: Run integration tests
+        env:
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: "3306"
+          MYSQL_ROOT_PASSWORD: test
+        run: npm test
